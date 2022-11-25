@@ -256,6 +256,7 @@ void call(Map inputParameters = [:]) {
     retryDelay: 60,
     stageNameFilterPatterns: ["${STAGE_NAME}"],
     useBuiltinFailurePatterns: true,
+    isAlwaysRetry: false,
     customFailurePatterns: [:]
   ]
 
@@ -270,7 +271,8 @@ void call(Map inputParameters = [:]) {
     'runSteps',
     'postSuccess',
     'postFailure',
-    'postAlways'
+    'postAlways',
+    'isAlwaysRetry'
   ]
 
   def parameters = defaultParameters + inputParameters
@@ -315,6 +317,9 @@ void call(Map inputParameters = [:]) {
       finally {
         echo('Run postAlways section on the execution node/agent')
         runPostMethodIfDefined(parameters.postAlways)
+        if (parameters.isAlwaysRetry && parameters.retryCount > 0) {
+          rerunConditionalRetry(parameters, '')
+        }
       }
     }
 
@@ -323,7 +328,7 @@ void call(Map inputParameters = [:]) {
     echo('Run catch section on the intermediate node/agent')
     echo('Caught error on intermediate node/agent: ' + error)
 
-    if (parameters.retryCount > 0) {
+    if (!parameters.isAlwaysRetry && parameters.retryCount > 0) {
       rerunConditionalRetry(parameters, error)
 
     } else {
