@@ -192,17 +192,18 @@ void rerunConditionalRetry(Map parameters = [:], error) {
 
   retryLogs = getRetryLogs(parameters.stageNameFilterPatterns, parameters.retryCount + 1)
   echo('Current retry logs:\n' + retryLogs)
-
-  if (
-    failurePatternsMatcher(
+  isMatcher = failurePatternsMatcher(
       retryLogs,
       parameters.useBuiltinFailurePatterns,
       parameters.customFailurePatterns
     )
-  ) {
+  if (isMatcher && parameters.retryCount > 0) {
     sleep parameters.retryDelay
     call(parameters)
-  } else {
+  } else if (isMatcher) {
+    error echo('Run step failure')
+  }
+  else {
     echo('There are no failure patterns matched')
     if (error) {
       conditionalThrowError(parameters.suppressErrors, error)
@@ -317,7 +318,7 @@ void call(Map inputParameters = [:]) {
       finally {
         echo('Run postAlways section on the execution node/agent')
         runPostMethodIfDefined(parameters.postAlways)
-        if (parameters.isAlwaysRetry && parameters.retryCount > 0) {
+        if (parameters.isAlwaysRetry) {
           rerunConditionalRetry(parameters, '')
         }
       }
